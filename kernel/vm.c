@@ -437,3 +437,16 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+
+static void
+printpte(pagetable_t pagetable, const char *prefix)
+{
+  // TODO: Add your code here...
+}
+
+void
+vmprint(pagetable_t pagetable)
+{
+  // TODO: Remove the following line and add your code here...
+  printpte(0, 0);
+}
