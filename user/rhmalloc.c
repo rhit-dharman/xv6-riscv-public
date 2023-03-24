@@ -22,6 +22,8 @@
 #include "kernel/types.h"
 #include "user/user.h"
 #include "user/rhmalloc.h"
+#include <stddef.h>
+#include <stdbool.h>
 
 /**
  * For testing purposes, we need to record where our memory starts. Generally
@@ -73,6 +75,11 @@ uint8 rhmalloc_init(void)
   }
 
   /* TODO: Add code here to initialize freelist and its content. */
+  freelist = (metadata_t*)heap_mem_start;
+  freelist->s.size = MAX_HEAP_SIZE - sizeof(metadata_t);
+  freelist->s.in_use = 0;
+  freelist->s.next = 0;
+  freelist->s.prev = 0;
   
 
   return 0;
@@ -106,8 +113,32 @@ void *rhmalloc(uint32 size)
     if(rhmalloc_init()) return 0;
 
   /* TODO: Add you malloc code here. */
+  size = ALIGN(size);
+  metadata_t *block = freelist;
+  while (block) {
+    if (!block->s.in_use && block->s.size >= size) {
+      break;
+    }
+    block = block->s.next;
+  }
+  if (!block) {
+    return 0;
+  }
+  if (block->s.size >= size + sizeof(metadata_t) + 8) {
+    metadata_t *new_block = (metadata_t*)((char *)block + sizeof(metadata_t) + size);
+    new_block->s.size = block->s.size - size - sizeof(metadata_t);
+    new_block->s.in_use = 0;
+    new_block->s.next = block->s.next;
+    new_block->s.prev = block;
+    if (block->s.next) {
+      new_block->s.next->s.prev = new_block;
+    }
+    block->s.next = new_block;
+    block->s.size = size;
+  }
+  block->s.in_use = 1;
 
-  return 0;
+  return (void*)((char*)block + sizeof(metadata_t));
 }
 
 /**
@@ -122,4 +153,27 @@ void *rhmalloc(uint32 size)
 void rhfree(void *ptr)
 {
   /* TODO: Add your free code here. */
+  if (!ptr) {
+    exit(1);
+  }
+  metadata_t *block = (metadata_t*)((char*)ptr - sizeof(metadata_t));
+  block->s.in_use = 0;
+  if (block->s.next && !block->s.next->s.in_use) {
+    block->s.size += block->s.next->s.size + sizeof(metadata_t);
+    block->s.next = block->s.next->s.next;
+    if (block->s.next) {
+      block->s.next->s.prev = block;
+    }
+  }
+  metadata_t *prev_block = block->s.prev;
+  if (prev_block && !prev_block->s.in_use) {
+    prev_block->s.size += block->s.size + sizeof(metadata_t);
+    prev_block->s.next = block->s.next;
+    if (block->s.next) {
+      block->s.next->s.prev = prev_block;
+    }
+  }
+
+   
+
 }
