@@ -22,6 +22,8 @@
 #include "kernel/types.h"
 #include "user/user.h"
 #include "user/rhmalloc.h"
+#include <stdint.h>
+#include <math.h>
 
 /**
  * Record the original start of our memory area in case we needed to allocate
@@ -96,6 +98,8 @@ uint8 rhmalloc_init(void)
   // TODO: Add your initialization code here, but do not change anything above
   // this line.
 
+
+
   return 0;
 }
 
@@ -137,7 +141,11 @@ void rhfree_all(void)
 void *get_buddy(void *ptr, int exponent)
 {
   // TODO: Add your code here.
-  return (void*)0;
+  uintptr_t address = (uintptr_t) ptr;
+  uintptr_t offset = address - (uintptr_t) heap_mem_start;
+  uintptr_t buddy_offset = offset ^ (1 << exponent);
+  uintptr_t buddy_address = (uintptr_t) heap_mem_start + buddy_offset;
+  return (void*) buddy_address;
 }
 
 /**
@@ -152,8 +160,25 @@ void *rhmalloc(uint32 size)
     if(rhmalloc_init()) return 0;
 
   // TODO: Add your malloc code here.
+  int exponent = 0;
+  uint32 aligned_size = 1;
+  while (aligned_size < size) {
+    aligned_size <<= 1;
+    exponent++;
+  }
+  if (aligned_size > MAX_HEAP_SIZE) {
+    return 0;
+  }
+  void *ptr = heap_mem_start;
+  if (ptr == 0)
+    return 0;
 
-  return (void*)0;
+  return (void*) ptr;
+}
+
+static uint32 get_chunk_size(void *ptr) {
+  uint32 exponent = *(uint32*)((uint8_t*)ptr - sizeof(uint32));
+  return 1 << exponent;
 }
 
 /**
@@ -167,5 +192,14 @@ void *rhmalloc(uint32 size)
  */
 void rhfree(void *ptr)
 {
-  // TODO: Add your free code here.
+  if (!ptr)
+    return;
+  uint32 size = get_chunk_size(ptr);
+  uint32 exponent = log2(size);
+  while (exponent < (2^22) - 1) {
+    void *buddy = get_buddy(ptr, exponent);
+    int idx = (buddy > ptr) ? (exponent + 1) : exponent;
+    if ()
+  }
+  
 }
